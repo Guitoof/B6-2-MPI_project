@@ -36,7 +36,7 @@ int main (int argc, char** argv)
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   sendRequests = (MPI_Request*) malloc(nbProcs*sizeof(MPI_Request));
   recvRequests = (MPI_Request*) malloc(nbProcs*sizeof(MPI_Request));
-  done = (int*)malloc(nbProcs*sizeof(int));
+  //done = (int*)malloc(nbProcs*sizeof(int));
 
   // Check if the number of processes is a divider of the matrices' SIZE
   if (SIZE % nbProcs)
@@ -69,27 +69,51 @@ int main (int argc, char** argv)
 
     /* Send data to other process */
     // Rows of A & columns of B
-    for (n = 0; n < nbProcs; ++n)
-    {
-      MPI_Issend(&A[n*blockSize*SIZE], SIZE * blockSize, MPI_INT, n, TAG, MPI_COMM_WORLD, &sendRequests[n]);
-      MPI_Issend(&B[n*blockSize*SIZE], SIZE * blockSize, MPI_INT, n, TAG, MPI_COMM_WORLD, &sendRequests[n]);
-    }
+    // for (n = 0; n < nbProcs; ++n)
+    // {
+    //   MPI_Issend(&A[n*blockSize*SIZE], SIZE * blockSize, MPI_INT, n, TAG, MPI_COMM_WORLD, &sendRequests[n]);
+    //   MPI_Issend(&B[n*blockSize*SIZE], SIZE * blockSize, MPI_INT, n, TAG, MPI_COMM_WORLD, &sendRequests[n]);
+    // }
 
   }
-  else
-  {
-    // Receive data
-    MPI_Irecv(&rowBlock, SIZE * blockSize, MPI_INT, 0, TAG, MPI_COMM_WORLD, &recvRequests[n]);
-    MPI_Irecv(&colBlock, SIZE * blockSize, MPI_INT, 0, TAG, MPI_COMM_WORLD, &recvRequests[n]);
 
-    // Process and display
-    block[rank] = 0;
-    for (k = 0; k < SIZE; ++k){
-      block[rank] += rowBlock[0] * colBlock[0];
+  // Scatter A's block columns between processes
+  MPI_Scatter(A, SIZE * blockSize, MPI_INT, rowBlock, SIZE * blockSize, MPI_INT, 0, MPI_COMM_WORLD);
+  // Scatter B's block rows between processes
+  transpose(B);
+  MPI_Scatter(B, SIZE * blockSize, MPI_INT, colBlock, SIZE * blockSize, MPI_INT, 0, MPI_COMM_WORLD);
+
+
+  // Compute diagonal blocks
+  for (i = 0; i < blockSize; ++i)
+  {
+    for (j = 0; j < blockSize; ++j)
+    {
+      block[blockSize*rank + SIZE*j + i] = 0;
+      for (k = 0; k < SIZE; ++k)
+      {
+        block[blockSize*rank + SIZE*j + i] += rowBlock[SIZE*i + k] * colBlock[SIZE*j + k];
+      }
+      printf("Rank%d Diag%d%d = %d\n", rank, i, j, block[blockSize*rank + SIZE*j + i]);
     }
+  }
+
+  // Each process sends its column from B to the other processes
+
+  //else
+  //{
+    // Receive data
+    // MPI_Irecv(&rowBlock, SIZE * blockSize, MPI_INT, 0, TAG, MPI_COMM_WORLD, &recvRequests[n]);
+    // MPI_Irecv(&colBlock, SIZE * blockSize, MPI_INT, 0, TAG, MPI_COMM_WORLD, &recvRequests[n]);
+    //
+    // // Process and display
+    // block[rank] = 0;
+    // for (k = 0; k < SIZE; ++k){
+    //   block[rank] += rowBlock[0] * colBlock[0];
+    // }
     //printf("C%d%d: %d \n",rank, rank, block[rank]);
     //printf("\n");
-  }
+  //}
 
   if (rank == 0)
   {

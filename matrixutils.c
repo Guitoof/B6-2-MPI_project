@@ -23,7 +23,7 @@ void randomInit(int M[SIZE*SIZE], int range)
   {
     for (j = 0; j < SIZE; ++j)
     {
-      M[i*SIZE + j]  = rand() % range;
+      M[SIZE*i + j]  = rand() % range;
     }
   }
 }
@@ -35,9 +35,9 @@ void transpose(int M[SIZE*SIZE])
   {
     for (j = 0; j < i; j++)
     {
-      M[i * SIZE + j] += M[j * SIZE + i];
-      M[j * SIZE + i] = M[i * SIZE + j] - M[j * SIZE + i];
-      M[i * SIZE + j] -= M[j * SIZE + i];
+      M[SIZE*i + j] += M[SIZE*j + i];
+      M[SIZE*j + i] = M[SIZE*i + j] - M[SIZE*j + i];
+      M[SIZE*i + j] -= M[SIZE*j + i];
     }
   }
 }
@@ -49,10 +49,10 @@ void product(int A[SIZE*SIZE], int B[SIZE*SIZE], int C[SIZE*SIZE])
   {
     for (j = 0; j < SIZE; j++)
     {
-      C[i * SIZE + j] = 0;
+      C[SIZE*i + j] = 0;
       for (k = 0; k < SIZE; k++)
       {
-        C[i * SIZE + j] += A[i * SIZE + k] * B[k * SIZE + j];
+        C[SIZE*i + j] += A[SIZE*i + k] * B[SIZE*k + j];
       }
     }
   }
