@@ -64,6 +64,7 @@ int main (int argc, char** argv)
     print(B);
     #endif
 
+    // Compute matricial product : A*B = check for further verification
     product(A, B, check);
 
     /* Send data to other process */

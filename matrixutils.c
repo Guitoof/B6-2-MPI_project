@@ -28,14 +28,16 @@ void randomInit(int M[SIZE*SIZE], int range)
   }
 }
 
-void transpose(int M[SIZE*SIZE], int tM[SIZE*SIZE])
+void transpose(int M[SIZE*SIZE])
 {
   int i, j;
   for (i = 0; i < SIZE; i++)
   {
-    for (j = 0; j < SIZE; j++)
+    for (j = 0; j < i; j++)
     {
-      tM[i * SIZE + j] = M[j * SIZE + i];
+      M[i * SIZE + j] += M[j * SIZE + i];
+      M[j * SIZE + i] = M[i * SIZE + j] - M[j * SIZE + i];
+      M[i * SIZE + j] -= M[j * SIZE + i];
     }
   }
 }

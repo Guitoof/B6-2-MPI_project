@@ -5,7 +5,7 @@
 
 void print( int M[SIZE*SIZE] );
 void randomInit(int M[SIZE*SIZE], int range);
-void transpose(int M[SIZE*SIZE], int tM[SIZE*SIZE]);
+void transpose(int M[SIZE*SIZE]);
 void product(int A[SIZE*SIZE], int B[SIZE*SIZE], int C[SIZE*SIZE]);
 
 #endif
