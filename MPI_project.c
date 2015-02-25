@@ -17,7 +17,6 @@ int main (int argc, char** argv)
   MPI_Request* sendRequests;
   MPI_Request* recvRequests;
 
-  int *done;
 
   // Matrices
   int A[SIZE*SIZE], B[SIZE*SIZE], C[SIZE*SIZE], check[SIZE*SIZE];
@@ -36,7 +35,6 @@ int main (int argc, char** argv)
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   sendRequests = (MPI_Request*) malloc(nbProcs*sizeof(MPI_Request));
   recvRequests = (MPI_Request*) malloc(nbProcs*sizeof(MPI_Request));
-  //done = (int*)malloc(nbProcs*sizeof(int));
 
   // Check if the number of processes is a divider of the matrices' SIZE
   if (SIZE % nbProcs)
@@ -66,15 +64,6 @@ int main (int argc, char** argv)
 
     // Compute matricial product : A*B = check for further verification
     product(A, B, check);
-
-    /* Send data to other process */
-    // Rows of A & columns of B
-    // for (n = 0; n < nbProcs; ++n)
-    // {
-    //   MPI_Issend(&A[n*blockSize*SIZE], SIZE * blockSize, MPI_INT, n, TAG, MPI_COMM_WORLD, &sendRequests[n]);
-    //   MPI_Issend(&B[n*blockSize*SIZE], SIZE * blockSize, MPI_INT, n, TAG, MPI_COMM_WORLD, &sendRequests[n]);
-    // }
-
   }
 
   // Scatter A's block columns between processes
@@ -94,32 +83,57 @@ int main (int argc, char** argv)
       {
         block[blockSize*rank + SIZE*j + i] += rowBlock[SIZE*i + k] * colBlock[SIZE*j + k];
       }
-      printf("Rank%d Diag%d%d = %d\n", rank, i, j, block[blockSize*rank + SIZE*j + i]);
     }
   }
 
-  // Each process sends its column from B to the other processes
+  /*
+  * Each process :
+  *   sends its column block from B to each other processes
+  *   receives each column block from every other processes
+  *   computes the corresponding column block
+  */
+  for (n = 0; n < nbProcs; ++n)
+  {
+    if (n != rank)
+    {
+      MPI_Issend( colBlock, SIZE*blockSize, MPI_INT, n, TAG, MPI_COMM_WORLD, &sendRequests[n] );
+      MPI_Irecv( &B[SIZE*blockSize*n], SIZE*blockSize, MPI_INT, n, TAG, MPI_COMM_WORLD, &recvRequests[n] );
+      MPI_Wait(&recvRequests[n], &status);
 
-  //else
-  //{
-    // Receive data
-    // MPI_Irecv(&rowBlock, SIZE * blockSize, MPI_INT, 0, TAG, MPI_COMM_WORLD, &recvRequests[n]);
-    // MPI_Irecv(&colBlock, SIZE * blockSize, MPI_INT, 0, TAG, MPI_COMM_WORLD, &recvRequests[n]);
-    //
-    // // Process and display
-    // block[rank] = 0;
-    // for (k = 0; k < SIZE; ++k){
-    //   block[rank] += rowBlock[0] * colBlock[0];
-    // }
-    //printf("C%d%d: %d \n",rank, rank, block[rank]);
-    //printf("\n");
-  //}
+
+      for (i = 0; i < blockSize; ++i)
+      {
+        for (j = 0; j < SIZE; ++j)
+        {
+          block[blockSize*rank*n + SIZE*j + i] = 0;
+          for (k = 0; k < SIZE; ++k)
+          {
+            block[blockSize*rank*n + SIZE*j + i] += A[SIZE*(blockSize*n + i) + k] * colBlock[SIZE*j + k];
+          }
+        }
+      }
+
+    }
+  }
+
+
+  /* Gather computed blocks into the result matrix C */
+  MPI_Gather( block, SIZE*blockSize, MPI_INT, C, SIZE*blockSize, MPI_INT, 0, MPI_COMM_WORLD );
+
 
   if (rank == 0)
   {
-    printf("\n\nSolution recherchée :\n");
+    printf("\nRésultat cherché :\n");
     print(check);
+    printf("\nRésultat calculé :\n");
+    print(C);
   }
+
+  free(rowBlock);
+  free(colBlock);
+  free(block);
+  free(sendRequests);
+  free(recvRequests);
 
   MPI_Finalize();
   return EXIT_SUCCESS;
