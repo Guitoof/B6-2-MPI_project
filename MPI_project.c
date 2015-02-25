@@ -3,57 +3,13 @@
 #include <stdio.h>
 #include <string.h>
 #include "time.h"
+#include "matrixutils.h"
+#include "config.h"
 
-#define TRUE 1
-#define FALSE 0
-
-#define TAG 100
-
-#define SIZE 4
-
-#define VERBOSE     // Print DEBUG messages
-
-
-void print( int matrix[SIZE*SIZE] )
+int main (int argc, char** argv)
 {
-  int i,j;
-
-  for (i = 0; i < SIZE; ++i){
-    for (j = 0; j < SIZE; ++j){
-      printf(" %d ", matrix[i*SIZE + j]);
-    }
-    printf("\n\r");
-  }
-  printf("\n\r");
-}
-
-void initMatrices(int A[SIZE*SIZE], int B[SIZE*SIZE])
-{
-  int i, j;
   srand(time(NULL));
 
-  printf("Initialisation des matrices A, B de taille %dx%d\n", SIZE, SIZE);
-
-  for (i = 0; i < SIZE; ++i){
-    for (j = 0; j < SIZE; ++j){
-      A[i*SIZE + j]  = rand();
-      B[i*SIZE + j] = rand();
-    }
-  }
-
-  #ifdef VERBOSE
-
-  printf("A = \n");
-  print(A);
-  printf("B = \n");
-  print(B);
-
-  #endif
-
-}
-
-int main (int argc, char* argv[])
-{
   /* Variables declaration*/
   // MPI
   int nbProcs, rank;
@@ -64,14 +20,14 @@ int main (int argc, char* argv[])
   int *done;
 
   // Matrices
-  int A[SIZE*SIZE], B[SIZE*SIZE], C[SIZE*SIZE];
+  int A[SIZE*SIZE], B[SIZE*SIZE], C[SIZE*SIZE], check[SIZE*SIZE];
   int blockSize;
 
   // Block data buffers
   int *rowBlock, *colBlock, *block;
 
   // Iterations
-  int i,j, k, n;
+  int i, j, k, n;
 
 
   /* MPI Initialization */
@@ -89,7 +45,6 @@ int main (int argc, char* argv[])
     exit(EXIT_FAILURE);
   }
 
-
   blockSize = SIZE / nbProcs;
   rowBlock = (int*)malloc(blockSize * SIZE * sizeof(int));
   colBlock = (int*)malloc(blockSize * SIZE * sizeof(int));
@@ -98,7 +53,18 @@ int main (int argc, char* argv[])
   if (rank == 0)
   {
     // Initialize matrices
-    initMatrices(A,B);
+    randomInit(A, 10);
+    #ifdef VERBOSE
+    printf("A = \n");
+    print(A);
+    #endif
+    randomInit(B, 10);
+    #ifdef VERBOSE
+    printf("B = \n");
+    print(B);
+    #endif
+
+    product(A, B, check);
 
     /* Send data to other process */
     // Rows of A & columns of B
@@ -111,18 +77,24 @@ int main (int argc, char* argv[])
   }
   else
   {
-      // Receive data
-      MPI_Irecv(&rowBlock, SIZE * blockSize, MPI_INT, 0, TAG, MPI_COMM_WORLD, &recvRequests[n]);
-      MPI_Irecv(&colBlock, SIZE * blockSize, MPI_INT, 0, TAG, MPI_COMM_WORLD, &recvRequests[n]);
+    // Receive data
+    MPI_Irecv(&rowBlock, SIZE * blockSize, MPI_INT, 0, TAG, MPI_COMM_WORLD, &recvRequests[n]);
+    MPI_Irecv(&colBlock, SIZE * blockSize, MPI_INT, 0, TAG, MPI_COMM_WORLD, &recvRequests[n]);
 
-      // Process and display
-      block[rank] = 0;
-      for (k = 0; k < SIZE; ++k){
-        block[rank] += rowBlock[0] * colBlock[0];
-      }
-      printf("C%d%d: %d \n",rank, rank, block[rank]);
-      printf("\n");
+    // Process and display
+    block[rank] = 0;
+    for (k = 0; k < SIZE; ++k){
+      block[rank] += rowBlock[0] * colBlock[0];
     }
+    //printf("C%d%d: %d \n",rank, rank, block[rank]);
+    //printf("\n");
+  }
+
+  if (rank == 0)
+  {
+    printf("\n\nSolution recherchée :\n");
+    print(check);
+  }
 
   MPI_Finalize();
   return EXIT_SUCCESS;
