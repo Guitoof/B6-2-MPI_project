@@ -80,16 +80,16 @@ int main (int argc, char** argv)
 
   /*
   * Each process :
-  *   sends its row block from A to each other processes
-  *   receives each row block from every other processes
+  *   sends its col block from B to each other processes
+  *   receives each col block from every other processes
   *   computes the corresponding column block
   */
   for (n = 0; n < nbProcs; ++n)
   {
     if (n != rank)
     {
-      MPI_Issend(rowBlock, SIZE*blockSize, MPI_INT, n, TAG, MPI_COMM_WORLD, &sendRequests[n]);
-      MPI_Irecv(&A[SIZE*blockSize*n], SIZE*blockSize, MPI_INT, n, TAG, MPI_COMM_WORLD, &recvRequests[n]);
+      MPI_Issend(colBlock, SIZE*blockSize, MPI_INT, n, TAG, MPI_COMM_WORLD, &sendRequests[n]);
+      MPI_Irecv(&B[SIZE*blockSize*n], SIZE*blockSize, MPI_INT, n, TAG, MPI_COMM_WORLD, &recvRequests[n]);
     }
   }
 
@@ -111,14 +111,14 @@ int main (int argc, char** argv)
     if (n != rank)
     {
       MPI_Wait(&recvRequests[n], &status);
-      for (i = 0; i < blockSize; ++i)
+      for (j = 0; j < blockSize; ++j)
       {
-        for (j = 0; j < blockSize; ++j)
+        for (i = 0; i < blockSize; ++i)
         {
           block[blockSize*n + SIZE*j + i] = 0;
           for (k = 0; k < SIZE; ++k)
           {
-            block[blockSize*n + SIZE*j + i] += A[SIZE*(blockSize*n + i) + k] * colBlock[SIZE*j + k];
+            block[blockSize*n + SIZE*j + i] += rowBlock[SIZE*i + k] * B[SIZE*(blockSize*n + j) + k];
           }
         }
       }
@@ -134,8 +134,6 @@ int main (int argc, char** argv)
 
   if (rank == 0)
   {
-    transpose(C);
-
     #ifdef VERBOSE
     printf("\nRésultat cherché :\n");
     print(check);
