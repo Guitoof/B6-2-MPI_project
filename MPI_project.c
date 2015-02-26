@@ -75,7 +75,8 @@ int main (int argc, char** argv)
   }
   MPI_Scatter(B, SIZE * blockSize, MPI_INT, colBlock, SIZE * blockSize, MPI_INT, 0, MPI_COMM_WORLD);
 
-  beginTime = MPI_WTime();
+  beginTime = MPI_Wtime();
+
 
   /*
   * Each process :
@@ -125,7 +126,7 @@ int main (int argc, char** argv)
   }
 
   elapsedTime = MPI_Wtime() - beginTime;
-  printf("Temps écoulé pour le processeur %d : %f sec", rank, elapsedTime);
+  printf("Temps écoulé pour le processeur %d : %f sec\n", rank, elapsedTime);
 
   /* Gather computed blocks into the result matrix C */
   MPI_Gather( block, SIZE*blockSize, MPI_INT, C, SIZE*blockSize, MPI_INT, 0, MPI_COMM_WORLD );
