@@ -16,7 +16,7 @@ int main (int argc, char** argv)
   MPI_Status status;
   MPI_Request* sendRequests;
   MPI_Request* recvRequests;
-  double beginTime, elapsedTime;
+  double beginTime, elapsedTime, monoProcTime;
 
   // Matrices
   int A[SIZE*SIZE], B[SIZE*SIZE], C[SIZE*SIZE], check[SIZE*SIZE];
@@ -63,7 +63,11 @@ int main (int argc, char** argv)
     #endif
 
     // Compute matricial product : A*B = check for further verification
+    monoProcTime = MPI_Wtime();
     product(A, B, check);
+    monoProcTime = MPI_Wtime() - monoProcTime;
+    /* Print monoprocess computation time */
+    printf("Temps de calcul monoprocesseur : %f sec\n", monoProcTime);
   }
 
   // Scatter A's block columns between processes
@@ -125,8 +129,10 @@ int main (int argc, char** argv)
     }
   }
 
+  /* Print multipleprocess computation times */
   elapsedTime = MPI_Wtime() - beginTime;
   printf("Temps écoulé pour le processeur %d : %f sec\n", rank, elapsedTime);
+
 
   /* Gather computed blocks into the result matrix C */
   MPI_Gather( block, SIZE*blockSize, MPI_INT, C, SIZE*blockSize, MPI_INT, 0, MPI_COMM_WORLD );
