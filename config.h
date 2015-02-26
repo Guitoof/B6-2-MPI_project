@@ -5,7 +5,7 @@
 #define TAG 100
 
 // Matrices sizes
-#define SIZE 256
+#define SIZE 512
 
 // Input matrices maximum value
 #define MAT_MAX 10

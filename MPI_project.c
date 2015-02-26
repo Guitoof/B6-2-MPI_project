@@ -53,9 +53,15 @@ int main (int argc, char** argv)
 
   if (rank == 0)
   {
+    printf("\n=========================================================================\n");
+    printf("Programme de multiplication matricielle parallèlisé sous MPI\n");
+    printf("Auteurs : Woody Rousseau & Guillaume Diallo-Mulliez\n\n");
+
+
     // Initialize matrices
     randomInit(A, MAT_MAX);
     #ifdef VERBOSE
+    printf("Initialisation aléatoire des matrices entre 0 et %d ...\n\n", MAT_MAX);
     printf("A = \n");
     print(A);
     #endif
@@ -70,6 +76,7 @@ int main (int argc, char** argv)
     product(A, B, check);
     monoProcTime = MPI_Wtime() - monoProcTime;
     /* Print monoprocess computation time */
+    printf("_____________________________________\n");
     printf("Temps de calcul monoprocesseur : %f sec\n", monoProcTime);
   }
 
@@ -101,14 +108,14 @@ int main (int argc, char** argv)
   }
 
   // Compute diagonal blocks (No need for the asynchronous communications to be completed)
-  for (i = 0; i < blockSize; ++i)
+  for (j = 0; j < blockSize; ++j)
   {
-    for (j = 0; j < blockSize; ++j)
+    for (i = 0; i < blockSize; ++i)
     {
-      block[blockSize*rank + SIZE*j + i] = 0;
+      block[blockSize*rank + SIZE*i + j] = 0;
       for (k = 0; k < SIZE; ++k)
       {
-        block[blockSize*rank + SIZE*j + i] += rowBlock[SIZE*i + k] * colBlock[SIZE*j + k];
+        block[blockSize*rank + SIZE*i + j] += rowBlock[SIZE*i + k] * colBlock[SIZE*j + k];
       }
     }
   }
@@ -122,11 +129,12 @@ int main (int argc, char** argv)
       {
         for (i = 0; i < blockSize; ++i)
         {
-          block[blockSize*n + SIZE*j + i] = 0;
-          for (k = 0; k < SIZE; ++k)
-          {
-            block[blockSize*n + SIZE*j + i] += rowBlock[SIZE*i + k] * B[SIZE*(blockSize*n + j) + k];
-          }
+          block[blockSize*n + SIZE*i + j] = 0;
+            for (k = 0; k < SIZE; ++k)
+            {
+              block[blockSize*n + SIZE*i + j] += rowBlock[SIZE*i + k] * B[SIZE*(blockSize*n + j) + k];
+            }
+
         }
       }
     }
