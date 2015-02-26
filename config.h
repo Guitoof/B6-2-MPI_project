@@ -5,9 +5,12 @@
 #define TAG 100
 
 // Matrices sizes
-#define SIZE 4
+#define SIZE 256
+
+// Input matrices maximum value
+#define MAT_MAX 10
 
 // Uncomment to print debug messages
-#define VERBOSE
+//#define VERBOSE
 
 #endif

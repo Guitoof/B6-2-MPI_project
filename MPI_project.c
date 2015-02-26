@@ -46,17 +46,17 @@ int main (int argc, char** argv)
   blockSize = SIZE / nbProcs;
   rowBlock = (int*)malloc(blockSize * SIZE * sizeof(int));
   colBlock = (int*)malloc(blockSize * SIZE * sizeof(int));
-  block = (int*)malloc(blockSize * blockSize * sizeof(int));
+  block = (int*)malloc(blockSize * SIZE * sizeof(int));
 
   if (rank == 0)
   {
     // Initialize matrices
-    randomInit(A, 10);
+    randomInit(A, MAT_MAX);
     #ifdef VERBOSE
     printf("A = \n");
     print(A);
     #endif
-    randomInit(B, 10);
+    randomInit(B, MAT_MAX);
     #ifdef VERBOSE
     printf("B = \n");
     print(B);
@@ -131,16 +131,19 @@ int main (int argc, char** argv)
   /* Gather computed blocks into the result matrix C */
   MPI_Gather( block, SIZE*blockSize, MPI_INT, C, SIZE*blockSize, MPI_INT, 0, MPI_COMM_WORLD );
 
-  transpose(C);
 
   if (rank == 0)
   {
+    transpose(C);
+
+    #ifdef VERBOSE
     printf("\nRésultat cherché :\n");
     print(check);
     printf("\nRésultat calculé :\n");
     print(C);
     printf("\n\nErreurs :\n");
     printErrors(C, check);
+    #endif
   }
 
   free(rowBlock);
