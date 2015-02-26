@@ -17,6 +17,7 @@ int main (int argc, char** argv)
   MPI_Request* sendRequests;
   MPI_Request* recvRequests;
   double beginTime, elapsedTime, monoProcTime;
+  double *procTimes;
 
   // Matrices
   int A[SIZE*SIZE], B[SIZE*SIZE], C[SIZE*SIZE], check[SIZE*SIZE];
@@ -35,6 +36,8 @@ int main (int argc, char** argv)
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   sendRequests = (MPI_Request*) malloc(nbProcs*sizeof(MPI_Request));
   recvRequests = (MPI_Request*) malloc(nbProcs*sizeof(MPI_Request));
+  procTimes = (double *)malloc(nbProcs*sizeof(double));
+
 
   // Check if the number of processes is a divider of the matrices' SIZE
   if (SIZE % nbProcs)
@@ -133,6 +136,39 @@ int main (int argc, char** argv)
   elapsedTime = MPI_Wtime() - beginTime;
   printf("Temps écoulé pour le processeur %d : %f sec\n", rank, elapsedTime);
 
+  #ifdef BENCHMARKS
+  /* Each process sends its processing time to the root process so that it can benchmark them */
+  MPI_Send( &elapsedTime, 1, MPI_DOUBLE, 0, TAG, MPI_COMM_WORLD );
+  if (rank == 0)
+  {
+    /* Receive processing times from each process */
+    procTimes[0] = elapsedTime;
+    for (n = 0; n < nbProcs; ++n)
+      if (n!=rank)
+        MPI_Recv( &procTimes[n], 1, MPI_DOUBLE, n, TAG, MPI_COMM_WORLD, &status );
+
+    /* Benchmark parallelism gain */
+    printf("\n=========================================================================");
+    printf("\nRésultats du benchmark associé à la parallèlisation de l'algorithme :\n\n");
+    printf("_____________________________________\n");
+
+    double longestTime = 0.0;
+    double rawGain = 0.0;
+    double gainRate = 0.0;
+    for (n = 0; n < nbProcs; ++n)
+    {
+      if ( procTimes[n] > longestTime )
+        longestTime = procTimes[n];
+    }
+    rawGain = monoProcTime - longestTime;
+    printf("Optimisation brute : %f sec\n", rawGain);
+    gainRate = 100 * rawGain / monoProcTime;
+    printf("Taux d'optimisation : %f %%\n", gainRate);
+
+    printf("=========================================================================\n");
+  }
+  #endif
+
 
   /* Gather computed blocks into the result matrix C */
   MPI_Gather( block, SIZE*blockSize, MPI_INT, C, SIZE*blockSize, MPI_INT, 0, MPI_COMM_WORLD );
@@ -141,12 +177,18 @@ int main (int argc, char** argv)
   if (rank == 0)
   {
     #ifdef VERBOSE
+    printf("\n=========================================================================\n");
+    printf("\nRésultat du calcul matriciel et comparaison au résultat attendu:\n\n");
+    printf("_____________________________________\n");
+
     printf("\nRésultat cherché :\n");
     print(check);
     printf("\nRésultat calculé :\n");
     print(C);
     printf("\n\nErreurs :\n");
     printErrors(C, check);
+
+    printf("\n=========================================================================\n");
     #endif
   }
 
@@ -155,6 +197,7 @@ int main (int argc, char** argv)
   free(block);
   free(sendRequests);
   free(recvRequests);
+  free(procTimes);
 
   MPI_Finalize();
   return EXIT_SUCCESS;

@@ -13,4 +13,7 @@
 // Uncomment to print debug messages
 //#define VERBOSE
 
+// Uncomment to compute and print benchmarks
+#define BENCHMARKS
+
 #endif
