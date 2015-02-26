@@ -16,6 +16,26 @@ void print( int M[SIZE*SIZE] )
   printf("\n\r");
 }
 
+void printErrors(int M[SIZE*SIZE], int check[SIZE*SIZE])
+{
+  int i, j;
+  for (i = 0; i < SIZE; i++)
+  {
+    for (j = 0; j < SIZE; j++)
+    {
+      if (M[i * SIZE + j] != check[i * SIZE + j])
+      {
+        printf("x ");
+      }
+      else
+      {
+        printf("o ");
+      }
+    }
+    printf("\n");
+  }
+}
+
 void randomInit(int M[SIZE*SIZE], int range)
 {
   int i, j;

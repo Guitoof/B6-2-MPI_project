@@ -16,7 +16,7 @@ int main (int argc, char** argv)
   MPI_Status status;
   MPI_Request* sendRequests;
   MPI_Request* recvRequests;
-
+  double beginTime, elapsedTime;
 
   // Matrices
   int A[SIZE*SIZE], B[SIZE*SIZE], C[SIZE*SIZE], check[SIZE*SIZE];
@@ -69,11 +69,30 @@ int main (int argc, char** argv)
   // Scatter A's block columns between processes
   MPI_Scatter(A, SIZE * blockSize, MPI_INT, rowBlock, SIZE * blockSize, MPI_INT, 0, MPI_COMM_WORLD);
   // Scatter B's block rows between processes
-  transpose(B);
+  if (rank == 0)
+  {
+    transpose(B);
+  }
   MPI_Scatter(B, SIZE * blockSize, MPI_INT, colBlock, SIZE * blockSize, MPI_INT, 0, MPI_COMM_WORLD);
 
+  beginTime = MPI_WTime();
 
-  // Compute diagonal blocks
+  /*
+  * Each process :
+  *   sends its row block from A to each other processes
+  *   receives each row block from every other processes
+  *   computes the corresponding column block
+  */
+  for (n = 0; n < nbProcs; ++n)
+  {
+    if (n != rank)
+    {
+      MPI_Issend(rowBlock, SIZE*blockSize, MPI_INT, n, TAG, MPI_COMM_WORLD, &sendRequests[n]);
+      MPI_Irecv(&A[SIZE*blockSize*n], SIZE*blockSize, MPI_INT, n, TAG, MPI_COMM_WORLD, &recvRequests[n]);
+    }
+  }
+
+  // Compute diagonal blocks (No need for the asynchronous communications to be completed)
   for (i = 0; i < blockSize; ++i)
   {
     for (j = 0; j < blockSize; ++j)
@@ -86,40 +105,32 @@ int main (int argc, char** argv)
     }
   }
 
-  /*
-  * Each process :
-  *   sends its column block from B to each other processes
-  *   receives each column block from every other processes
-  *   computes the corresponding column block
-  */
   for (n = 0; n < nbProcs; ++n)
   {
     if (n != rank)
     {
-      MPI_Issend( colBlock, SIZE*blockSize, MPI_INT, n, TAG, MPI_COMM_WORLD, &sendRequests[n] );
-      MPI_Irecv( &B[SIZE*blockSize*n], SIZE*blockSize, MPI_INT, n, TAG, MPI_COMM_WORLD, &recvRequests[n] );
       MPI_Wait(&recvRequests[n], &status);
-
-
       for (i = 0; i < blockSize; ++i)
       {
-        for (j = 0; j < SIZE; ++j)
+        for (j = 0; j < blockSize; ++j)
         {
-          block[blockSize*rank*n + SIZE*j + i] = 0;
+          block[blockSize*n + SIZE*j + i] = 0;
           for (k = 0; k < SIZE; ++k)
           {
-            block[blockSize*rank*n + SIZE*j + i] += A[SIZE*(blockSize*n + i) + k] * colBlock[SIZE*j + k];
+            block[blockSize*n + SIZE*j + i] += A[SIZE*(blockSize*n + i) + k] * colBlock[SIZE*j + k];
           }
         }
       }
-
     }
   }
 
+  elapsedTime = MPI_Wtime() - beginTime;
+  printf("Temps écoulé pour le processeur %d : %f sec", rank, elapsedTime);
 
   /* Gather computed blocks into the result matrix C */
   MPI_Gather( block, SIZE*blockSize, MPI_INT, C, SIZE*blockSize, MPI_INT, 0, MPI_COMM_WORLD );
 
+  transpose(C);
 
   if (rank == 0)
   {
@@ -127,6 +138,8 @@ int main (int argc, char** argv)
     print(check);
     printf("\nRésultat calculé :\n");
     print(C);
+    printf("\n\nErreurs :\n");
+    printErrors(C, check);
   }
 
   free(rowBlock);
