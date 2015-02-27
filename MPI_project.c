@@ -5,6 +5,77 @@
 #include "time.h"
 #include "matrixutils.h"
 #include "config.h"
+#include "compute.h"
+#include "argsparser.h"
+
+void routine(Config config, int rank, int printMonoprocessor)
+{
+  // Matrices
+  int *A, *B, *C, *check;
+
+  double monoProcTime;
+
+  A = (int*)malloc(config.size * config.size * sizeof(int));
+  B = (int*)malloc(config.size * config.size * sizeof(int));
+  C = (int*)malloc(config.size * config.size * sizeof(int));
+  check = (int*)malloc(config.size * config.size * sizeof(int));
+
+  config.blockSize = config.size / config.nbProcs;
+
+  if (rank == 0)
+  {
+    // Initialize matrices
+    randomInit(A, 10, config.size);
+    if (config.verbose)
+    {
+      printf("A = \n");
+      print(A, config.size);
+    }
+    randomInit(B, 10, config.size);
+    if (config.verbose)
+    {
+      printf("B = \n");
+      print(B, config.size);
+    }
+
+    monoProcTime = MPI_Wtime();
+    // Compute matricial product : A*B = check for further verification
+    product(A, B, check, config.size);
+    monoProcTime = MPI_Wtime() - monoProcTime;
+    /* Print monoprocess computation time */
+    if (printMonoprocessor)
+    {
+      printf("_____________________________________\n");
+      printf("Temps de calcul monoprocesseur : %f sec\n", monoProcTime);
+      printf("_____________________________________\n");
+    }
+  }
+
+  double elapsedTime;
+
+  if (config.algorithm == NONBLOCKING)
+    elapsedTime = computeAsynchronously(config, rank, A, B, C, monoProcTime);
+  else
+    elapsedTime = computeSynchronously(config, rank, A, B, C, monoProcTime);
+
+  if (rank == 0)
+  {
+    if (config.verbose)
+    {
+      printf("\nRésultat cherché :\n");
+      print(check, config.size);
+      printf("\nRésultat calculé :\n");
+      print(C, config.size);
+      printf("\nErreurs :\n");
+      printErrors(C, check, config.size);
+    }
+  }
+
+  free(A);
+  free(B);
+  free(C);
+  free(check);
+}
 
 int main (int argc, char** argv)
 {
@@ -12,142 +83,50 @@ int main (int argc, char** argv)
 
   /* Variables declaration*/
   // MPI
-  int nbProcs, rank;
-  MPI_Status status;
-  MPI_Request* sendRequests;
-  MPI_Request* recvRequests;
-  double beginTime, elapsedTime;
+  int rank;
 
-  // Matrices
-  int A[SIZE*SIZE], B[SIZE*SIZE], C[SIZE*SIZE], check[SIZE*SIZE];
-  int blockSize;
-
-  // Block data buffers
-  int *rowBlock, *colBlock, *block;
-
-  // Iterations
-  int i, j, k, n;
-
+  Config config;
 
   /* MPI Initialization */
   MPI_Init(&argc, &argv);
-  MPI_Comm_size(MPI_COMM_WORLD, &nbProcs);
+  MPI_Comm_size(MPI_COMM_WORLD, &config.nbProcs);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  sendRequests = (MPI_Request*) malloc(nbProcs*sizeof(MPI_Request));
-  recvRequests = (MPI_Request*) malloc(nbProcs*sizeof(MPI_Request));
 
-  // Check if the number of processes is a divider of the matrices' SIZE
-  if (SIZE % nbProcs)
+  parseArguments(argc, argv, &config, rank);
+
+  // Check if the number of processes is a divider of the matrices' size
+  if (config.size % config.nbProcs)
   {
-    printf("La taille des matrices multipliées (%d) doit être un multiple du nombre de processeurs utilisé (%d) !\n", SIZE, nbProcs);
+    printf("La taille des matrices multipliées (%d) doit être un multiple du nombre de processeurs utilisé (%d) !\n", config.size, config.nbProcs);
     exit(EXIT_FAILURE);
   }
-
-  blockSize = SIZE / nbProcs;
-  rowBlock = (int*)malloc(blockSize * SIZE * sizeof(int));
-  colBlock = (int*)malloc(blockSize * SIZE * sizeof(int));
-  block = (int*)malloc(blockSize * blockSize * sizeof(int));
-
-  if (rank == 0)
+  if (config.benchmark)
   {
-    // Initialize matrices
-    randomInit(A, 10);
-    #ifdef VERBOSE
-    printf("A = \n");
-    print(A);
-    #endif
-    randomInit(B, 10);
-    #ifdef VERBOSE
-    printf("B = \n");
-    print(B);
-    #endif
-
-    // Compute matricial product : A*B = check for further verification
-    product(A, B, check);
-  }
-
-  // Scatter A's block columns between processes
-  MPI_Scatter(A, SIZE * blockSize, MPI_INT, rowBlock, SIZE * blockSize, MPI_INT, 0, MPI_COMM_WORLD);
-  // Scatter B's block rows between processes
-  if (rank == 0)
-  {
-    transpose(B);
-  }
-  MPI_Scatter(B, SIZE * blockSize, MPI_INT, colBlock, SIZE * blockSize, MPI_INT, 0, MPI_COMM_WORLD);
-
-  beginTime = MPI_Wtime();
-
-
-  /*
-  * Each process :
-  *   sends its row block from A to each other processes
-  *   receives each row block from every other processes
-  *   computes the corresponding column block
-  */
-  for (n = 0; n < nbProcs; ++n)
-  {
-    if (n != rank)
+    int sizes[3] = {512, 1024, 2048};
+    int i;
+    for (i = 0; i < 3; i++)
     {
-      MPI_Issend(rowBlock, SIZE*blockSize, MPI_INT, n, TAG, MPI_COMM_WORLD, &sendRequests[n]);
-      MPI_Irecv(&A[SIZE*blockSize*n], SIZE*blockSize, MPI_INT, n, TAG, MPI_COMM_WORLD, &recvRequests[n]);
-    }
-  }
-
-  // Compute diagonal blocks (No need for the asynchronous communications to be completed)
-  for (i = 0; i < blockSize; ++i)
-  {
-    for (j = 0; j < blockSize; ++j)
-    {
-      block[blockSize*rank + SIZE*j + i] = 0;
-      for (k = 0; k < SIZE; ++k)
+      config.size = sizes[i];
+      config.algorithm = BLOCKING;
+      if (rank == 0)
       {
-        block[blockSize*rank + SIZE*j + i] += rowBlock[SIZE*i + k] * colBlock[SIZE*j + k];
+        printf("===============\n");
+        printf("N = %d\n", config.size);
+        printf("===============\n");
+      }
+      routine(config, rank, 1);
+      config.algorithm = NONBLOCKING;
+      routine(config, rank, 0);
+      if (rank == 0)
+      {
+        printf("\n\n");
       }
     }
   }
-
-  for (n = 0; n < nbProcs; ++n)
+  else
   {
-    if (n != rank)
-    {
-      MPI_Wait(&recvRequests[n], &status);
-      for (i = 0; i < blockSize; ++i)
-      {
-        for (j = 0; j < blockSize; ++j)
-        {
-          block[blockSize*n + SIZE*j + i] = 0;
-          for (k = 0; k < SIZE; ++k)
-          {
-            block[blockSize*n + SIZE*j + i] += A[SIZE*(blockSize*n + i) + k] * colBlock[SIZE*j + k];
-          }
-        }
-      }
-    }
+    routine(config, rank, 1);
   }
-
-  elapsedTime = MPI_Wtime() - beginTime;
-  printf("Temps écoulé pour le processeur %d : %f sec\n", rank, elapsedTime);
-
-  /* Gather computed blocks into the result matrix C */
-  MPI_Gather( block, SIZE*blockSize, MPI_INT, C, SIZE*blockSize, MPI_INT, 0, MPI_COMM_WORLD );
-
-  transpose(C);
-
-  if (rank == 0)
-  {
-    printf("\nRésultat cherché :\n");
-    print(check);
-    printf("\nRésultat calculé :\n");
-    print(C);
-    printf("\n\nErreurs :\n");
-    printErrors(C, check);
-  }
-
-  free(rowBlock);
-  free(colBlock);
-  free(block);
-  free(sendRequests);
-  free(recvRequests);
 
   MPI_Finalize();
   return EXIT_SUCCESS;

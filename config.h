@@ -4,10 +4,19 @@
 // MPI
 #define TAG 100
 
-// Matrices sizes
-#define SIZE 4
+typedef enum
+{
+  BLOCKING,
+  NONBLOCKING
+} Algorithm;
 
-// Uncomment to print debug messages
-#define VERBOSE
+typedef struct {
+  int nbProcs;
+  int blockSize;
+  int verbose;
+  int size;
+  int benchmark;
+  Algorithm algorithm;
+} Config;
 
 #endif

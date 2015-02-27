@@ -9,8 +9,8 @@
 
 ROOT    = MPI_project
 CMD     = $(ROOT).x
-SRC     = MPI_project.c matrixutils.c
-OBJ     = MPI_project.o matrixutils.o
+SRC     = MPI_project.c matrixutils.c compute.c argsparser.c
+OBJ     = MPI_project.o matrixutils.o compute.o argsparser.o
 
 FC	= mpicc
 FFLAGS	= -O3
