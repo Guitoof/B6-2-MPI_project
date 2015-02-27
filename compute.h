@@ -3,7 +3,7 @@
 
 #include "config.h"
 
-double computeSynchronously(Config config, int rank, int *A, int *B, int *C, double monoProcTime);
-double computeAsynchronously(Config config, int rank, int *A, int *B, int *C, double monoProcTime);
+void computeSynchronously(Config config, int rank, int *A, int *B, int *C, double monoProcTime);
+void computeAsynchronously(Config config, int rank, int *A, int *B, int *C, double monoProcTime);
 
 #endif

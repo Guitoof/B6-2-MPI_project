@@ -1,5 +1,5 @@
 # B6-2-MPI_project
-MPI project for ENSTA Paristech's B6-2 course
+Multiplication matricielle MPI. Auteurs : Guillaume Diallo-Mulliez, Woody Rousseau
 
 ## Compilation
 
@@ -31,6 +31,6 @@ Le flag --verbose peut être ajouté pour imprimer les matrices, résultats et e
 
     mpiexec -n 4 MPI_project.x --N 16 --verbose
 
-Le flag --benchmark permet de lancer le benchmark avec les deux algorithmes et les tailles 512, 1024 et 2048
+Le flag --benchmark permet de lancer le benchmark avec les deux algorithmes et les tailles 512, 1024 et 2048. Ca peut durer un moment...
 
     mpiexec -n 4 MPI_project.x --benchmark

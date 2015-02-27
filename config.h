@@ -4,6 +4,8 @@
 // MPI
 #define TAG 100
 
+#define RANGEMAX 100
+
 typedef enum
 {
   BLOCKING,

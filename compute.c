@@ -43,7 +43,7 @@ void benchmark(double monoProcTime, double elapsedTime, Config config, int rank)
   free(procTimes);
 }
 
-double computeSynchronously(Config config, int rank, int *A, int *B, int *C, double monoProcTime)
+void computeSynchronously(Config config, int rank, int *A, int *B, int *C, double monoProcTime)
 {
   if (rank==0)
     printf("Algorithme bloquant avec N=%d : \n\n", config.size);
@@ -110,12 +110,10 @@ double computeSynchronously(Config config, int rank, int *A, int *B, int *C, dou
   free(block);
 
   benchmark(monoProcTime, elapsedTime, config, rank);
-
-  return elapsedTime;
 }
 
 
-double computeAsynchronously(Config config, int rank, int *A, int *B, int *C, double monoProcTime)
+void computeAsynchronously(Config config, int rank, int *A, int *B, int *C, double monoProcTime)
 {
   if (rank==0)
     printf("Algorithme non-bloquant avec N=%d\n\n", config.size);
@@ -207,6 +205,4 @@ double computeAsynchronously(Config config, int rank, int *A, int *B, int *C, do
   free(recvRequests);
 
   benchmark(monoProcTime, elapsedTime, config, rank);
-
-  return elapsedTime;
 }

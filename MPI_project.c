@@ -25,13 +25,13 @@ void routine(Config config, int rank, int printMonoprocessor)
   if (rank == 0)
   {
     // Initialize matrices
-    randomInit(A, 10, config.size);
+    randomInit(A, RANGEMAX, config.size);
     if (config.verbose)
     {
       printf("A = \n");
       print(A, config.size);
     }
-    randomInit(B, 10, config.size);
+    randomInit(B, RANGEMAX, config.size);
     if (config.verbose)
     {
       printf("B = \n");
@@ -54,9 +54,9 @@ void routine(Config config, int rank, int printMonoprocessor)
   double elapsedTime;
 
   if (config.algorithm == NONBLOCKING)
-    elapsedTime = computeAsynchronously(config, rank, A, B, C, monoProcTime);
+    computeAsynchronously(config, rank, A, B, C, monoProcTime);
   else
-    elapsedTime = computeSynchronously(config, rank, A, B, C, monoProcTime);
+    computeSynchronously(config, rank, A, B, C, monoProcTime);
 
   if (rank == 0)
   {
@@ -93,6 +93,12 @@ int main (int argc, char** argv)
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   parseArguments(argc, argv, &config, rank);
+
+  if (rank == 0)
+  {
+    printf("Programme de multiplication matricielle parallèlisé sous MPI\n");
+    printf("Auteurs : Woody Rousseau & Guillaume Diallo-Mulliez\n\n");
+  }
 
   // Check if the number of processes is a divider of the matrices' size
   if (config.size % config.nbProcs)
