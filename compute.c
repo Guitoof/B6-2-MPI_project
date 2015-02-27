@@ -77,19 +77,20 @@ void computeSynchronously(Config config, int rank, int *A, int *B, int *C, doubl
     /* Le proc 0 transmet les nbLignes lignes suivantes de A */
     if (rank == 0)
     {
-      memcpy(rowBlock, &(A[n * config.blockSize * config.size]), config.size * config.blockSize * sizeof(int));
+      memcpy(colBlock, &(B[config.size * config.blockSize * n]), config.size * config.blockSize * sizeof(int));
     }
-    MPI_Bcast(rowBlock, config.size*config.blockSize, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(colBlock, config.size*config.blockSize, MPI_INT, 0, MPI_COMM_WORLD);
 
     /* Chaque proc calcul le bloc (iProc,rang) */
-    for (i = 0; i < config.blockSize; i++)
+    for (j = 0; j < config.blockSize; j++)
     {
-      for (j = 0; j < config.blockSize; j++)
+      for (i = 0; i < config.blockSize; i++)
       {
-        block[n * config.blockSize + j * config.size + i] = 0;
+        int index = config.blockSize*n + config.size*i + j;
+        block[index] = 0;
         for (k = 0; k < config.size; k++)
         {
-          block[n * config.blockSize + j * config.size + i] += rowBlock[i * config.size + k] * colBlock[j * config.size + k];
+          block[index] += rowBlock[config.size*i + k] * colBlock[config.size*j + k];
         }
       }
     }
@@ -102,7 +103,7 @@ void computeSynchronously(Config config, int rank, int *A, int *B, int *C, doubl
 
   if (rank == 0)
   {
-    transpose(C, config.size);
+    //transpose(C, config.size);
   }
 
   free(rowBlock);
